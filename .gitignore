@@ -1,0 +1,17 @@
+/additional_info
+/venv
+*/logs/
+/.run/
+/alembic/
+__pycache__/
+idea/
+*idea*
+*__pycache__*
+*.run/
+*.env/
+htmlcov/
+*/.pytest_cache/
+
+alembic.ini
+*.idea
+
