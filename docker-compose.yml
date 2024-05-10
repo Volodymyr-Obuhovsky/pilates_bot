@@ -1,0 +1,10 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgres:13.3
+    environment:
+      POSTGRES_DB: "pilates_db"
+      POSTGRES_USER: "pilates_bot"
+      POSTGRES_PASSWORD: "LSoNbzM8INpUgNw"
+    ports:
+      - "5432:5432"

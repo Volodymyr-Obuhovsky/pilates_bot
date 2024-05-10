@@ -35,11 +35,12 @@ async def main() -> None:
     # after start, it will not answer on collected messages in chat
     await bot.delete_webhook(drop_pending_updates=True)
 
-    # delete bot menu
-    # await bot.delete_my_commands(scope=BotCommandScopeAllPrivateChats())
-
     # create bot menu
     await bot.set_my_commands(commands=private_commands, scope=BotCommandScopeAllPrivateChats())
+
+    # delete bot menu
+    await bot.delete_my_commands(scope=BotCommandScopeAllPrivateChats())
+
     # only updates is pointed in allowed_updates will be handled
     await dp.start_polling(bot, allowed_updates=ALLOWED_UPDATES)
 
