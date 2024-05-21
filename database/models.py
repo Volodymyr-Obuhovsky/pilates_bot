@@ -23,7 +23,7 @@ class Banners(Base):
     image: Mapped[str] = mapped_column(String(150), nullable=True)
     description_id: Mapped[int] = mapped_column(ForeignKey("description.id", ondelete="SET NULL"), nullable=False)
 
-    description: Mapped["Descriptions"] = relationship(backref="banner")
+    description: Mapped["Descriptions"] = relationship("Descriptions", backref="banner")
 
 
 class Marathons(Base):
@@ -33,12 +33,12 @@ class Marathons(Base):
     name: Mapped[str] = mapped_column(String(150), nullable=True, unique=True)
     price: Mapped[float] = mapped_column(Numeric(5, 2), nullable=True)
     image: Mapped[str] = mapped_column(String(150))
-    discount: Mapped[int] = mapped_column(BigInteger)
+    discount: Mapped[int] = mapped_column(BigInteger, nullable=True)
     client_rate: Mapped[int] = mapped_column(Integer, default=0)
     rate: Mapped[int] = mapped_column(Integer, default=0)
     description_id: Mapped[int] = mapped_column(ForeignKey("description.id", ondelete="SET NULL"), nullable=False)
 
-    description: Mapped["Descriptions"] = relationship(backref="marathon")
+    description: Mapped["Descriptions"] = relationship("Descriptions", backref="marathon")
 
 
 class Users(Base):
@@ -49,6 +49,6 @@ class Users(Base):
     first_name: Mapped[str] = mapped_column(String(150), nullable=True)
     last_name: Mapped[str] = mapped_column(String(150), nullable=True)
     phone: Mapped[str] = mapped_column(String(13), nullable=True)
-    marathon: Mapped[int] = mapped_column(ForeignKey("marathons.id", ondelete="SET NULL"), nullable=False)
+    marathon_id: Mapped[int] = mapped_column(ForeignKey("marathon.id", ondelete="SET NULL"), nullable=False)
 
-    user: Mapped["Marathons"] = relationship(backref='user')
+    marathon: Mapped["Marathons"] = relationship("Marathons", backref='user')

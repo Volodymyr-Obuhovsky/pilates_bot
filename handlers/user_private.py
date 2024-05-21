@@ -1,45 +1,40 @@
-from aiogram import Router, F
-from aiogram.types import Message
+import os
+
+from aiogram import Router, F, Bot
+from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart, Command, or_f
-from aiogram.utils.markdown import hbold
-from aiogram.utils.formatting import as_list, as_marked_section, Bold
 
 from app_filters.chat_types import ChatTypes
+from handlers.navigation_proccesing import get_banner_data, get_marathon_capacities
+from keyboards.inline import MenuCallBack
 from keyboards.reply import get_keyboard
 
 user_private_router = Router()
 user_private_router.message.filter(ChatTypes(["private"]))
 
-GENERAL_KEYBOARD = get_keyboard(buttons=("Марафоны", "Варианты оплаты", "FAQ", "Контакты"),
-                                placeholder="Что Вас интересует?",
-                                size=(2, 2))
-MARATHON_KEYBOARD = get_keyboard(buttons=("СПИНА- РУКИ", "ПОПА - НОГИ", "ПРЕСС - СПИНА", "ПРЕСС - ТАЗ"),
-                                 size=(2, 2))
-
 
 @user_private_router.message(CommandStart())
-async def start_handler(message: Message) -> None:
-    await message.answer(
-        f"Привет, {hbold(message.from_user.full_name)}, это PilatesMari_Bot - помощник тренера Марии по пилатесу",
-        reply_markup=GENERAL_KEYBOARD)
+async def cmd_start(message: Message) -> None:
+    user = message.from_user.username
+    admin = os.getenv("ADMIN")
+
+    role = "user"
+    if user == admin:
+        role = "admin"
+
+    media, keyboards = await get_banner_data(level=0, banner_name="main", role=role)
+    await message.answer_photo(media.media, caption=media.caption, reply_markup=keyboards)
 
 
-@user_private_router.message(or_f(F.text.lower() == "марафоны", Command("maraphons")))
-async def marathons_cmd(message: Message) -> None:
-    await message.answer(f"Выберите, что бы Вы хотели укрепить💪",
-                         reply_markup=MARATHON_KEYBOARD)
-
-
-@user_private_router.message(F.text.lower() == "варианты оплаты")
-async def payment_options(message: Message) -> None:
-    response = as_marked_section(
-        Bold("Варианты оплаты:"),
-        "Monobank",
-        "Bunq",
-        marker="✅"
-    )
-    await message.answer(text=response.as_html())
-# F - is magic filter
-# @user_private_router.message(F.text)
-# async def test(message: Message) -> None:
-#     await message.answer("This is magic filter")
+@user_private_router.callback_query(MenuCallBack.filter())
+async def user_menu(callback: CallbackQuery, callback_data: MenuCallBack):
+    media, keyboards = await get_banner_data(level=callback_data.level,
+                                             banner_name=callback_data.banner_name,
+                                             page=callback_data.page,
+                                             role=callback_data.role,
+                                             after_add=callback_data.after_add)
+    if callback_data.after_add:
+        await callback.message.answer_photo(media.media, caption=media.caption, reply_markup=keyboards)
+    else:
+        await callback.message.edit_media(media=media, reply_markup=keyboards)
+        await callback.answer()

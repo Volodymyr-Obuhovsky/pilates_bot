@@ -22,12 +22,11 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder
 del_keyboard = ReplyKeyboardRemove()
 
 
-def get_keyboard(buttons: tuple[str],
-                 size: tuple,
+def get_keyboard(buttons: tuple[str, str],
+                 size: tuple[int] = (2,),
                  placeholder: str = None,
                  request_contact: int = None,
                  request_location: int = None):
-
     reply_keyboard = ReplyKeyboardBuilder()
 
     for index, name_button in enumerate(buttons, start=1):
@@ -45,4 +44,3 @@ def get_keyboard(buttons: tuple[str],
 
 # example addition button in existing keyboards
 # reply_keyboard.row(KeyboardButton(text="Button"))
-
