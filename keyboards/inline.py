@@ -2,30 +2,31 @@ from aiogram.filters.callback_data import CallbackData
 from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from cash.cash_crud import save_callback_data, get_callback_data
 from database.crud import MarathonsQuery
 
 
 class MenuCallBack(CallbackData, prefix="main"):
-    level: int
-    banner_name: str | None = None
-    marathon: str | None = None
-    page: int = 1
-    role: str = "user"
-    after_add: bool = False
+    data_key: str
 
 
 class AdminCallBack(CallbackData, prefix="admin"):
-    banner: str | None = None
-    marathon: str | None = None
-    marathon_id: int | None = None
-    capacity: str | None = None
-    attribute: str | None = None
-    change: bool = False
-    after_add: bool = False
+    data_key: str
 
 
-def main_page_buttons(level: int, role: str,
-                      sizes: tuple[int] = (2,)):
+async def create_button(button: str, callback_data: dict, panel: str):
+    key = await save_callback_data(data=callback_data,
+                                   panel=panel)
+    if panel == "admin":
+        return InlineKeyboardButton(text=button,
+                                    callback_data=AdminCallBack(data_key=key).pack())
+    return InlineKeyboardButton(text=button,
+                                callback_data=MenuCallBack(data_key=key).pack())
+
+
+async def main_page_buttons(level: int, role: str,
+                            full_user_name: str,
+                            sizes: tuple[int] = (2,)):
     keyboard = InlineKeyboardBuilder()
 
     buttons = {
@@ -34,33 +35,52 @@ def main_page_buttons(level: int, role: str,
         "О НАС ℹ️": "about",
         "FAQ 📃": "faq"
     }
-    for button, banner in buttons.items():
-        keyboard.add(InlineKeyboardButton(text=button,
-                                          callback_data=MenuCallBack(level=level + 1,
-                                                                     banner_name=banner,
-                                                                     role=role).pack()))
+
+    for button_name, banner in buttons.items():
+        button = await create_button(button=button_name,
+                                     callback_data=dict(level=level + 1,
+                                                        full_user_name=full_user_name,
+                                                        banner_name=banner,
+                                                        role=role),
+                                     panel="standard_panel")
+        keyboard.add(button)
     if role == "admin":
-        keyboard.add(InlineKeyboardButton(text="АДМИН-ПАНЕЛЬ⚙️",
-                                          callback_data=AdminCallBack(banner="admin_panel").pack()))
+        button = await create_button(button="АДМИН-ПАНЕЛЬ⚙️",
+                                     callback_data=dict(banner="admin_panel",
+                                                        full_user_name=full_user_name),
+                                     panel="admin")
+        keyboard.add(button)
 
     return keyboard.adjust(*sizes).as_markup()
 
 
-def admin_panel_buttons(sizes: tuple[int] = (2,)):
+async def admin_panel_buttons(full_user_name: str, sizes: tuple[int] = (2,)):
     keyboard = InlineKeyboardBuilder()
 
-    keyboard.add(InlineKeyboardButton(text="ДОБАВИТЬ МАРАФОН",
-                                      callback_data=AdminCallBack(banner="add_marathon").pack()))
-    keyboard.add(InlineKeyboardButton(text="ИЗМЕНИТЬ МАРАФОН",
-                                      callback_data=AdminCallBack(banner="change_marathon").pack()))
-    keyboard.add(InlineKeyboardButton(text="⬅️НАЗАД",
-                                      callback_data=MenuCallBack(level=0, banner_name="main", role="admin").pack()))
-    keyboard.add(InlineKeyboardButton(text="НА ГЛАВНУЮ🏠",
-                                      callback_data=MenuCallBack(level=0, banner_name="main", role="admin").pack()))
+    button = await create_button(button="ДОБАВИТЬ МАРАФОН",
+                                 callback_data=dict(banner="add_marathon",
+                                                    full_user_name=full_user_name),
+                                 panel="admin")
+    keyboard.add(button)
+    button = await create_button(button="ИЗМЕНИТЬ МАРАФОН",
+                                 callback_data=dict(banner="change_marathon",
+                                                    full_user_name=full_user_name),
+                                 panel="admin")
+    keyboard.add(button)
+    button = await create_button(button="⬅️НАЗАД",
+                                 callback_data=dict(level=0, full_user_name=full_user_name,
+                                                    banner_name="main", role="admin"),
+                                 panel="standard_menu")
+    keyboard.add(button)
+    button = await create_button(button="НА ГЛАВНУЮ🏠",
+                                 callback_data=dict(level=0, full_user_name=full_user_name,
+                                                    banner_name="main", role="admin"),
+                                 panel="standard_menu")
+    keyboard.add(button)
     return keyboard.adjust(*sizes).as_markup()
 
 
-def info_pages_buttons(level: int, role: str, sizes: tuple[int] = (2,)):
+async def info_pages_buttons(level: int, role: str, full_user_name: str, sizes: tuple[int] = (2,)):
     # Info_pages: payment_page, about_page, faq_page
     keyboard = InlineKeyboardBuilder()
 
@@ -69,59 +89,90 @@ def info_pages_buttons(level: int, role: str, sizes: tuple[int] = (2,)):
         "МАРАФОНЫ🏃‍♀️": "marathons",
         "НА ГЛАВНУЮ🏠": "main",
     }
-    for button, banner in buttons.items():
+    for button_name, banner in buttons.items():
 
         if banner == "marathons":
-            keyboard.add(InlineKeyboardButton(text=button,
-                                              callback_data=MenuCallBack(level=level, banner_name=banner,
-                                                                         role=role).pack()))
+            button = await create_button(button=button_name,
+                                         callback_data=dict(level=level,
+                                                            banner_name=banner,
+                                                            full_user_name=full_user_name,
+                                                            role=role),
+                                         panel="standard_menu")
+
+            keyboard.add(button)
             continue
-        keyboard.add(InlineKeyboardButton(text=button,
-                                          callback_data=MenuCallBack(level=level - 1, banner_name=banner,
-                                                                     role=role).pack()))
+        button = await create_button(button=button_name,
+                                     callback_data=dict(level=level - 1, banner_name=banner,
+                                                        full_user_name=full_user_name,
+                                                        role=role),
+                                     panel="standard_menu")
+        keyboard.add(button)
 
     return keyboard.adjust(*sizes).as_markup()
 
 
 async def marathons_buttons(level: int,
                             role: str,
+                            full_user_name: str,
                             sizes: tuple[int] = (2,),
                             change_button: bool = False):
     keyboard = InlineKeyboardBuilder()
     marathons = await MarathonsQuery.get_all_instances(relationship="description")
     buttons = {marathon.description.header: marathon.name for marathon in marathons}
 
-    for button, banner in buttons.items():
+    for button_name, banner in buttons.items():
         if not change_button:
-            keyboard.add(InlineKeyboardButton(text=button,
-                                              callback_data=MenuCallBack(level=level + 1, banner_name=banner,
-                                                                         role=role).pack()))
+            button = await create_button(button=button_name,
+                                         callback_data=dict(level=level + 1, banner_name=banner,
+                                                            full_user_name=full_user_name,
+                                                            role=role),
+                                         panel="standard_menu")
+            keyboard.add(button)
         else:
-            keyboard.add(InlineKeyboardButton(text=button,
-                                              callback_data=AdminCallBack(marathon=banner,
-                                                                          change=True).pack()))
+            button = await create_button(button=button_name,
+                                         callback_data=dict(marathon=banner,
+                                                            full_user_name=full_user_name,
+                                                            change=True),
+                                         panel="admin")
+
+            keyboard.add(button)
     if not change_button:
-        keyboard.add(InlineKeyboardButton(text="⬅️НАЗАД",
-                                          callback_data=MenuCallBack(level=0, banner_name="main", role=role).pack()))
+        button = await create_button(button="⬅️НАЗАД",
+                                     callback_data=dict(level=0, full_user_name=full_user_name,
+                                                        banner_name="main", role=role),
+                                     panel="standard_menu")
+        keyboard.add(button)
     else:
-        keyboard.add(InlineKeyboardButton(text="⬅️НАЗАД",
-                                          callback_data=AdminCallBack(banner="admin_panel",
-                                                                      after_add=True).pack()))
+        button = await create_button(button="⬅️НАЗАД",
+                                     callback_data=dict(banner="admin_panel",
+                                                        full_user_name=full_user_name,
+                                                        after_add=True),
+                                     panel="admin")
+        keyboard.add(button)
 
     return keyboard.adjust(*sizes).as_markup()
 
 
-def marathon_button(level: int, page: int,
-                    pagination_buttons: dict,
-                    sizes: tuple[int] = (2, 1)):
+async def marathon_button(level: int, page: int,
+                          pagination_buttons: dict,
+                          full_user_name: str,
+                          sizes: tuple[int] = (2, 1)):
     keyboard = InlineKeyboardBuilder()
-
-    keyboard.add(InlineKeyboardButton(text="⬅️НАЗАД",
-                                      callback_data=MenuCallBack(level=level - 1, banner_name="marathons").pack()))
-    keyboard.add(InlineKeyboardButton(text="КУПИТЬ💶",
-                                      callback_data=MenuCallBack(level=level + 3, banner_name="buy").pack()))
-    keyboard.add(InlineKeyboardButton(text="НА ГЛАВНУЮ🏠",
-                                      callback_data=MenuCallBack(level=0, banner_name="main").pack()))
+    button = await create_button(button="⬅️НАЗАД",
+                                 callback_data=dict(level=level - 1,
+                                                    full_user_name=full_user_name,
+                                                    banner_name="marathons"),
+                                 panel="standard_menu")
+    keyboard.add(button)
+    button = await create_button(button="КУПИТЬ💶",
+                                 callback_data=dict(level=level + 3, banner_name="buy"),
+                                 panel="standard_menu")
+    keyboard.add(button)
+    button = await create_button(button="НА ГЛАВНУЮ🏠",
+                                 callback_data=dict(level=0, banner_name="main",
+                                                    full_user_name=full_user_name),
+                                 panel="standard_menu")
+    keyboard.add(button)
     keyboard.adjust(*sizes)
     row = []
     for text, banner in pagination_buttons.items():
@@ -142,9 +193,10 @@ def marathon_button(level: int, page: int,
     return keyboard.row(*row).as_markup()
 
 
-def change_marathon_buttons(marathon_id: int,
-                            marathon: str,
-                            sizes: tuple[int] = (1,)):
+async def change_marathon_buttons(marathon_id: int,
+                                  marathon: str,
+                                  full_user_name: str,
+                                  sizes: tuple[int] = (1,)):
     keyboard = InlineKeyboardBuilder()
     buttons = {
         "НАЗВАНИЕ": "name",
@@ -157,33 +209,44 @@ def change_marathon_buttons(marathon_id: int,
     }
 
     for capacity, attribute in buttons.items():
-        keyboard.add(InlineKeyboardButton(text=capacity,
-                                          callback_data=AdminCallBack(marathon_id=marathon_id,
-                                                                      marathon=marathon,
-                                                                      capacity=capacity,
-                                                                      attribute=attribute).pack()))
-    #
-    keyboard.add(InlineKeyboardButton(text="⬅️НАЗАД",
-                                      callback_data=AdminCallBack(banner="change_marathon").pack()))
+        button = await create_button(button=capacity,
+                                     callback_data=dict(marathon_id=marathon_id,
+                                                        marathon=marathon,
+                                                        capacity=capacity,
+                                                        full_user_name=full_user_name,
+                                                        attribute=attribute),
+                                     panel="admin")
+        keyboard.add(button)
+    button = await create_button(button="⬅️НАЗАД",
+                                 callback_data=dict(banner="change_marathon",
+                                                    full_user_name=full_user_name),
+                                 panel="admin")
+    keyboard.add(button)
     return keyboard.adjust(*sizes).as_markup()
 
 
-def finish_add_marathon_buttons(sizes: tuple[int] = (1,)):
+async def finish_add_marathon_buttons(full_user_name: str, sizes: tuple[int] = (1,)):
     keyboard = InlineKeyboardBuilder()
-    keyboard.add(InlineKeyboardButton(text="НА ГЛАВНУЮ🏠",
-                                      callback_data=MenuCallBack(level=0,
-                                                                 banner_name="main",
-                                                                 role="admin",
-                                                                 after_add=True).pack()))
-    keyboard.add(InlineKeyboardButton(text="АДМИН-ПАНЕЛЬ⚙️",
-                                      callback_data=AdminCallBack(banner="admin_panel", after_add=True).pack()))
+    button = await create_button(button="НА ГЛАВНУЮ🏠",
+                                 callback_data=dict(level=0,
+                                                    banner_name="main",
+                                                    full_user_name=full_user_name,
+                                                    role="admin",
+                                                    after_add=True),
+                                 panel="standard_menu")
+    keyboard.add(button)
+    button = await create_button(button="АДМИН-ПАНЕЛЬ⚙️",
+                                 callback_data=dict(banner="admin_panel",
+                                                    full_user_name=full_user_name,
+                                                    after_add=True),
+                                 panel="admin")
+    keyboard.add(button)
     return keyboard.adjust(*sizes).as_markup()
 
-
-def get_callback_buttons(buttons: dict[str, str], sizes: tuple[int] = (2,)):
-    keyboard = InlineKeyboardBuilder()
-
-    for text, data in buttons.items():
-        keyboard.add(InlineKeyboardButton(text=text, callback_data=data))
-
-    return keyboard.adjust(*sizes).as_markup()
+# def get_callback_buttons(buttons: dict[str, str], sizes: tuple[int] = (2,)):
+#     keyboard = InlineKeyboardBuilder()
+#
+#     for text, data in buttons.items():
+#         keyboard.add(InlineKeyboardButton(text=text, callback_data=data))
+#
+#     return keyboard.adjust(*sizes).as_markup()

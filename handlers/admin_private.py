@@ -1,17 +1,14 @@
-from enum import Enum
-
 from aiogram import F, Router, types
 from aiogram.types import CallbackQuery
 from aiogram.filters import Command, StateFilter, or_f
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.utils.formatting import Bold
 
-from app_filters.chat_types import ChatTypes, IsAdmin
+from app_filters.chat_types import ChatTypes
+from app_filters.callback_query import AdminCallbackFilter
 from handlers.navigation_proccesing import get_banner_data, get_marathon_capacities
 from keyboards.reply import get_keyboard
-from keyboards.inline import marathons_buttons, AdminCallBack, get_callback_buttons, finish_add_marathon_buttons, \
-    change_marathon_buttons
+from keyboards.inline import marathons_buttons, AdminCallBack, finish_add_marathon_buttons
 from database.crud import MarathonsQuery
 
 admin_router = Router()
@@ -23,11 +20,12 @@ admin_router.edited_message.filter(ChatTypes(['private']))
 # 1. FSM to add marathon
 # 2. FSM to change marathon
 
-@admin_router.callback_query(AdminCallBack.filter(F.banner == "admin_panel"))
+@admin_router.callback_query(AdminCallbackFilter(banner="admin_panel"))
 async def admin_panel_callback(callback: CallbackQuery, callback_data: AdminCallBack):
-    media, keyboards = await get_banner_data(level=1, banner_name=callback_data.banner)
+    media, keyboards = await get_banner_data(level=1, banner_name=callback_data["banner"],
+                                             full_user_name=callback_data["full_user_name"])
 
-    if callback_data.after_add:
+    if callback_data["after_add"]:
         await callback.message.answer_photo(media.media, caption=media.caption, reply_markup=keyboards)
     else:
         await callback.message.edit_media(media=media, reply_markup=keyboards)
@@ -61,7 +59,7 @@ class AddMarathon(StatesGroup):
 # 1. FSM to add marathon
 
 # 1.0 Становимся в состояние ожидания ввода name
-@admin_router.callback_query(StateFilter(None), AdminCallBack.filter(F.banner == "add_marathon"))
+@admin_router.callback_query(StateFilter(None), AdminCallbackFilter(banner="add_marathon"))
 async def add_marathon_callback(
         callback: types.CallbackQuery,
         state: FSMContext
@@ -79,7 +77,8 @@ async def cancel_handler(message: types.Message, state: FSMContext) -> None:
     if current_state is None:
         return
     await state.clear()
-    media, keyboards = await get_banner_data(level=1, banner_name="admin_panel")
+    media, keyboards = await get_banner_data(level=1, banner_name="admin_panel",
+                                             full_user_name=message.from_user.full_name)
     await message.answer_photo(media.media, caption=media.caption, reply_markup=keyboards)
 
 
@@ -224,7 +223,7 @@ async def add_image(message: types.Message, state: FSMContext):
     data = await state.get_data()
     sub_data = {"header": data["header"], "text": data["description"]}
     new_instance = {attr: value for attr, value in data.items() if attr != "header" and attr != "description"}
-    keyboard = finish_add_marathon_buttons()
+    keyboard = await finish_add_marathon_buttons(full_user_name=message.from_user.full_name)
     try:
         await MarathonsQuery.add_instance(new_instance=new_instance, sub_data=sub_data)
         text = f"Марафон {data['header']} успешно добавлен"
@@ -275,34 +274,38 @@ class ChangeMarathon(StatesGroup):
 
 
 # 2.0 Отлавливаем нажатие кнопки "Изменить марафон"
-@admin_router.callback_query(AdminCallBack.filter(F.banner == "change_marathon"))
-async def change_marathon_callback(callback: types.CallbackQuery):
-    keyboard = await marathons_buttons(level=2, role="admin", change_button=True)
+@admin_router.callback_query(AdminCallbackFilter(banner="change_marathon"))
+async def change_marathon_callback(callback: types.CallbackQuery, callback_data: AdminCallBack):
+    keyboard = await marathons_buttons(level=2, role="admin",
+                                       full_user_name=callback_data["full_user_name"],
+                                       change_button=True)
     await callback.message.answer(
         "Выберете марафон, который Вы хотите изменить:",
         reply_markup=keyboard
     )
 
 
-@admin_router.callback_query(AdminCallBack.filter(F.change))
+@admin_router.callback_query(AdminCallbackFilter("change"))
 async def change_marathon_callback(callback: types.CallbackQuery,
                                    callback_data: AdminCallBack):
-    media, keyboard = await get_marathon_capacities(marathon=callback_data.marathon)
+    media, keyboard = await get_marathon_capacities(marathon=callback_data["marathon"],
+                                                    full_user_name=callback_data["full_user_name"])
     await callback.message.delete()
     await callback.message.answer_photo(photo=media.media,
-                                        caption=f"Марафон {media.caption}\n\nВыберите что Вы хотите изменить:",
+                                        caption=f"<strong>Марафон {media.caption}</strong>"
+                                                f"\n\nВыберите что Вы хотите изменить:",
                                         reply_markup=keyboard)
 
 
-@admin_router.callback_query(StateFilter(None), AdminCallBack.filter(F.attribute))
+@admin_router.callback_query(StateFilter(None), AdminCallbackFilter("attribute"))
 async def change_marathon_capacity_callback(callback: types.CallbackQuery,
                                             callback_data: AdminCallBack,
                                             state: FSMContext):
-    await state.update_data(marathon=callback_data.marathon)
-    await state.update_data(marathon_id=callback_data.marathon_id)
-    await state.update_data(attribute=callback_data.attribute)
+    await state.update_data(marathon=callback_data["marathon"])
+    await state.update_data(marathon_id=callback_data["marathon_id"])
+    await state.update_data(attribute=callback_data["attribute"])
     await callback.answer()
-    await callback.message.answer(text=capacities_text[callback_data.attribute])
+    await callback.message.answer(text=capacities_text[callback_data["attribute"]])
     await state.set_state(ChangeMarathon.capacity)
 
 
@@ -328,9 +331,11 @@ async def update_marathon_capacity(message: types.Message, state: FSMContext):
                              f"было изменено на {data['capacity']}")
 
         if data["attribute"] == "name":
-            media, keyboard = await get_marathon_capacities(marathon=new_data[data["attribute"]])
+            media, keyboard = await get_marathon_capacities(marathon=new_data[data["attribute"]],
+                                                            full_user_name=message.from_user.full_name)
         else:
-            media, keyboard = await get_marathon_capacities(marathon=marathon)
+            media, keyboard = await get_marathon_capacities(marathon=marathon,
+                                                            full_user_name=message.from_user.full_name)
 
         await message.answer_photo(media.media,
                                    caption="Выберите что Вы хотите изменить:",

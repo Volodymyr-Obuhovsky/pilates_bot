@@ -10,7 +10,7 @@ from database.models import Base
 # from common.texts_for_db import categories, description_for_info_pages
 from environment import set_environment
 
-set_environment("test_local")
+set_environment("dev_local")
 
 engine = create_async_engine(os.getenv('DB_URL'), echo=True, pool_pre_ping=True,
                              pool_recycle=1800)
