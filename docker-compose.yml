@@ -35,8 +35,8 @@ services:
       - "pg_stat_statements.track=all"
     environment:
       POSTGRES_DB: "pilates_db"
-      POSTGRES_USER:
-      POSTGRES_PASSWORD:
+      POSTGRES_USER: "pilates_bot"
+      POSTGRES_PASSWORD: "LSoNbzM8INpUgNw"
       PGDATA: "/var/lib/postgresql/data/pgdata"
     volumes:
       - ../2. Init Database:/docker-entrypoint-initdb.d
@@ -89,8 +89,8 @@ services:
     container_name: pilates_bot_test_db
     environment:
       POSTGRES_DB: "pilates_test_db"
-      POSTGRES_USER:
-      POSTGRES_PASSWORD:
+      POSTGRES_USER: "pilates_bot"
+      POSTGRES_PASSWORD: "kszfkdjjfzkjfnskdjfk"
     volumes:
       - test_postgres_data:/var/lib/postgresql/test_data/
 

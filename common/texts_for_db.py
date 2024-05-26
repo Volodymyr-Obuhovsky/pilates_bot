@@ -87,6 +87,12 @@ basic_banners = {
                     f"'10. Что делать, если у меня возникли технические проблемы при доступе к курсу или просмотре видеоматериалов?'\n"
                     f"Свяжитесь со мной через инстаграм - https://www.instagram.com/masha.pro.pilates/"
 
+        }},
+    "buy_marathon": {
+        "image": "AgACAgQAAxkBAAIE22ZTKIJrg6djl6JgHEssVetMIDbTAAK8wDEbTTyZUq9Te1FgoCx7AQADAgADeQADNQQ",
+        "sub_data": {
+            "header": f"Чтобы приобрести данный марафон перейдите по этой ссылке",
+            "text": None
         }}
 }
 

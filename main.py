@@ -3,7 +3,7 @@ import logging
 import sys
 import os
 
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, F, types
 from aiogram.enums import ParseMode
 from aiogram.types import BotCommandScopeAllPrivateChats
 from aiogram.fsm.strategy import FSMStrategy
@@ -27,7 +27,14 @@ bot.admin_list = []
 
 # fsmstrategy - keeps every chat state with every user(USER_IN_CHAT state by default)
 dp = Dispatcher(fsm_strategy=FSMStrategy.USER_IN_CHAT)
+
+
 # ALLOWED_UPDATES = ["message", "edited_message"]
+
+# @dp.message(F.photo)
+# async def get_photo(message: types.Message):
+#     await message.answer(message.photo[-1].file_id)
+
 
 dp.callback_query.outer_middleware(CallbackMiddleware())
 

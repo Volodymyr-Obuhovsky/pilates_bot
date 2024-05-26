@@ -118,14 +118,14 @@ async def marathons_buttons(level: int,
                             change_button: bool = False):
     keyboard = InlineKeyboardBuilder()
     marathons = await MarathonsQuery.get_all_instances(relationship="description")
-    buttons = {marathon.description.header: marathon.name for marathon in marathons}
+    buttons = [(marathon.description.header,marathon.name, marathon.id) for marathon in marathons]
 
-    for button_name, banner in buttons.items():
+    for button_name, banner, page in buttons:
         if not change_button:
             button = await create_button(button=button_name,
                                          callback_data=dict(level=level + 1, banner_name=banner,
                                                             full_user_name=full_user_name,
-                                                            role=role),
+                                                            role=role, page=page),
                                          panel="standard_menu")
             keyboard.add(button)
         else:
@@ -155,42 +155,66 @@ async def marathons_buttons(level: int,
 
 async def marathon_button(level: int, page: int,
                           pagination_buttons: dict,
-                          full_user_name: str,
-                          sizes: tuple[int] = (2, 1)):
+                          full_user_name: str, role: str,
+                          sizes: tuple[int] = (2, 2, 2)):
     keyboard = InlineKeyboardBuilder()
     button = await create_button(button="⬅️НАЗАД",
                                  callback_data=dict(level=level - 1,
                                                     full_user_name=full_user_name,
-                                                    banner_name="marathons"),
+                                                    banner_name="marathons",
+                                                    role=role),
                                  panel="standard_menu")
     keyboard.add(button)
     button = await create_button(button="КУПИТЬ💶",
-                                 callback_data=dict(level=level + 3, banner_name="buy"),
+                                 callback_data=dict(level=level + 1, banner_name="buy_marathon", role=role),
+                                 panel="standard_menu")
+
+    keyboard.add(button)
+
+    for text, banner in pagination_buttons.items():
+        if banner == "next":
+            button = await create_button(button=text,
+                                         callback_data=dict(level=level,
+                                                            banner_name=banner,
+                                                            page=page + 1),
+                                         panel="standard_menu")
+            keyboard.add(button)
+
+        elif banner == "previous":
+            button = await create_button(button=text,
+                                         callback_data=dict(level=level,
+                                                            banner_name=banner,
+                                                            page=page - 1),
+                                         panel="standard_menu")
+            keyboard.add(button)
+
+    button = await create_button(button="НА ГЛАВНУЮ🏠",
+                                 callback_data=dict(level=0, banner_name="main",
+                                                    full_user_name=full_user_name, role=role),
+                                 panel="standard_menu")
+    keyboard.add(button)
+    return keyboard.adjust(*sizes).as_markup()
+
+
+async def buy_buttons(level: int, banner_name: str,
+                      full_user_name: str, role: str,
+                      sizes: tuple[int] = (1,)):
+    keyboard = InlineKeyboardBuilder()
+    button = await create_button(button="⬅️НАЗАД",
+                                 callback_data=dict(level=level - 1,
+                                                    banner=banner_name,
+                                                    full_user_name=full_user_name,
+                                                    role=role),
                                  panel="standard_menu")
     keyboard.add(button)
     button = await create_button(button="НА ГЛАВНУЮ🏠",
                                  callback_data=dict(level=0, banner_name="main",
-                                                    full_user_name=full_user_name),
+                                                    full_user_name=full_user_name,
+                                                    role=role),
                                  panel="standard_menu")
     keyboard.add(button)
-    keyboard.adjust(*sizes)
-    row = []
-    for text, banner in pagination_buttons.items():
-        if banner == "next":
-            row.append(InlineKeyboardButton(text=text,
-                                            callback_data=MenuCallBack(
-                                                level=level,
-                                                banner_name=banner,
-                                                page=page + 1).pack()))
 
-        elif banner == "previous":
-            row.append(InlineKeyboardButton(text=text,
-                                            callback_data=MenuCallBack(
-                                                level=level,
-                                                banner_name=banner,
-                                                page=page - 1).pack()))
-
-    return keyboard.row(*row).as_markup()
+    return keyboard.adjust(*sizes).as_markup()
 
 
 async def change_marathon_buttons(marathon_id: int,

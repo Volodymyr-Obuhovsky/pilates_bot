@@ -5,7 +5,7 @@ from database.crud import BannerQuery, MarathonsQuery
 from keyboards.inline import (main_page_buttons,
                               info_pages_buttons,
                               marathons_buttons,
-                              marathon_button, admin_panel_buttons, change_marathon_buttons)
+                              marathon_button, admin_panel_buttons, change_marathon_buttons, buy_buttons)
 from utils.paginator import Paginator
 
 
@@ -51,8 +51,9 @@ def pages(paginator: Paginator):
     return buttons
 
 
-async def marathon_page(level: int, page: int, full_user_name: str):
+async def marathon_page(level: int, banner_name: str, page: int, full_user_name: str, role: str):
     all_marathons = await MarathonsQuery.get_all_instances(relationship="description")
+    chosen_marathon = await MarathonsQuery.get_instance(instance_name=banner_name, relationship="description")
 
     paginator = Paginator(all_marathons, page=page)
     marathon = paginator.get_page()[0]
@@ -70,14 +71,22 @@ async def marathon_page(level: int, page: int, full_user_name: str):
         level=level,
         page=page,
         pagination_buttons=pagination_buttons,
-        full_user_name=full_user_name
+        full_user_name=full_user_name,
+        role=role
     )
 
     return image, keyboard
 
 
-async def inquirer():
-    pass
+async def buy_marathon(level: int, banner_name: str, full_user_name: str, role: str):
+    banner = await BannerQuery.get_instance(instance_name=banner_name, relationship="description")
+    header = f"<strong>{banner.description.header}</strong>"
+    image = InputMediaPhoto(media=banner.image, caption=header)
+
+    keyboard = await buy_buttons(level=level, banner_name=banner_name,
+                                 full_user_name=full_user_name, role=role)
+
+    return image, keyboard
 
 
 # ********************** Functions for admin_panel ******************
@@ -117,4 +126,7 @@ async def get_banner_data(level: int,
     if level == 1:
         return await info_pages(level=level, full_user_name=full_user_name, banner_name=banner_name, role=role)
     if level == 2:
-        return await marathon_page(level=level, page=page, full_user_name=full_user_name)
+        return await marathon_page(level=level, banner_name=banner_name, page=page, full_user_name=full_user_name,
+                                   role=role)
+    if level == 3:
+        return await buy_marathon(level=level, banner_name=banner_name, full_user_name=full_user_name, role=role)
