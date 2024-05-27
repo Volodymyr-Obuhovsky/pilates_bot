@@ -3,7 +3,7 @@ import logging
 import sys
 import os
 
-from aiogram import Bot, Dispatcher, F, types
+from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.types import BotCommandScopeAllPrivateChats
 from aiogram.fsm.strategy import FSMStrategy
@@ -12,9 +12,9 @@ from environment import set_environment
 
 set_environment("dev_local")
 
-from common.commands import private_commands
 from cash.cash_config import redis
-from database.db_config import create_db
+from common.texts_for_db import fill_db
+from database.db_config import create_db, drop_db
 from handlers.admin_private import admin_router
 from handlers.user_private import user_private_router
 from middleware.cash import CallbackMiddleware
@@ -27,13 +27,6 @@ bot.admin_list = []
 
 # fsmstrategy - keeps every chat state with every user(USER_IN_CHAT state by default)
 dp = Dispatcher(fsm_strategy=FSMStrategy.USER_IN_CHAT)
-
-
-# ALLOWED_UPDATES = ["message", "edited_message"]
-
-# @dp.message(F.photo)
-# async def get_photo(message: types.Message):
-#     await message.answer(message.photo[-1].file_id)
 
 
 dp.callback_query.outer_middleware(CallbackMiddleware())
@@ -50,14 +43,13 @@ async def on_shutdown():
 
 
 async def main() -> None:
+    await drop_db()
     await create_db()
+    await fill_db()
 
     # it is necessary for situation, when bot hasn't worked anytime and
     # after start, it will not answer on collected messages in chat
     await bot.delete_webhook(drop_pending_updates=True)
-
-    # create bot menu
-    await bot.set_my_commands(commands=private_commands, scope=BotCommandScopeAllPrivateChats())
 
     # delete bot menu
     await bot.delete_my_commands(scope=BotCommandScopeAllPrivateChats())

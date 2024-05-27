@@ -51,9 +51,8 @@ def pages(paginator: Paginator):
     return buttons
 
 
-async def marathon_page(level: int, banner_name: str, page: int, full_user_name: str, role: str):
+async def marathon_page(level: int, page: int, full_user_name: str, role: str):
     all_marathons = await MarathonsQuery.get_all_instances(relationship="description")
-    chosen_marathon = await MarathonsQuery.get_instance(instance_name=banner_name, relationship="description")
 
     paginator = Paginator(all_marathons, page=page)
     marathon = paginator.get_page()[0]
@@ -61,8 +60,8 @@ async def marathon_page(level: int, banner_name: str, page: int, full_user_name:
     image = InputMediaPhoto(
         media=marathon.image,
         caption=f"<strong>{marathon.description.header}\
-                </strong>\n{marathon.description.text}\nСтоимость: {round(marathon.price, 2)} евро\n\
-                <strong>Товар {paginator.page} из {paginator.pages}</strong>",
+                </strong>\n{marathon.description.text}\nСтоимость: {round(marathon.price, 2)} евро\n\n\
+                <strong>Марафон {paginator.page} из {paginator.pages}</strong>",
     )
 
     pagination_buttons = pages(paginator)
@@ -126,7 +125,7 @@ async def get_banner_data(level: int,
     if level == 1:
         return await info_pages(level=level, full_user_name=full_user_name, banner_name=banner_name, role=role)
     if level == 2:
-        return await marathon_page(level=level, banner_name=banner_name, page=page, full_user_name=full_user_name,
+        return await marathon_page(level=level, page=page, full_user_name=full_user_name,
                                    role=role)
     if level == 3:
         return await buy_marathon(level=level, banner_name=banner_name, full_user_name=full_user_name, role=role)

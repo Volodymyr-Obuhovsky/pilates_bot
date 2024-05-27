@@ -1,7 +1,7 @@
 import time
 
 from sqlalchemy import select, update
-from sqlalchemy.orm import selectinload, joinedload, DeclarativeBase
+from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import DBAPIError
 
 from database.db_config import db_context
