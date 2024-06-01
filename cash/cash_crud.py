@@ -9,7 +9,7 @@ menu_callback_attrs = {"full_user_name": None, "level": None, "banner_name": Non
 
 admin_callback_attrs = {"banner": None, "full_user_name": None, "marathon": None,
                         "marathon_id": None, "capacity": None, "attribute": None,
-                        "change": False, "after_add": False}
+                        "change": False, "delete": False, "after_add": False}
 
 
 def create_callback_data(data: dict, panel: str = "standard_menu"):

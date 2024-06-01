@@ -1,3 +1,5 @@
+from typing import Dict, Any
+
 from aiogram import F, Router, types
 from aiogram.types import CallbackQuery
 from aiogram.filters import Command, StateFilter, or_f
@@ -251,17 +253,18 @@ async def add_image2(message: types.Message, state: FSMContext):
 
 capacities_text = {"name": "Введите новое название",
                    "header": "Ведите новый заголовок",
-                   "description": "Введите новое описание",
+                   "text": "Введите новое описание",
                    "price": "Введите новую цену",
-                   "discount": "Введите новую скидку",
+                   "discount": "Введите процент скидки",
                    "image": "Добавьте новое изображение"}
 
 capacities_buttons = {
     "name": "НАЗВАНИЕ",
     "header": "ЗАГОЛОВОК",
-    "description": "ОПИСАНИЕ",
+    "text": "ОПИСАНИЕ",
     "price": "ЦЕНА",
-    "discount": "СКИДКА"
+    "discount": "СКИДКА",
+    "image": "ИЗОБРАЖЕНИЕ"
 }
 
 
@@ -275,10 +278,10 @@ class ChangeMarathon(StatesGroup):
 
 # 2.0 Отлавливаем нажатие кнопки "Изменить марафон"
 @admin_router.callback_query(AdminCallbackFilter(banner="change_marathon"))
-async def change_marathon_callback(callback: types.CallbackQuery, callback_data: AdminCallBack):
+async def change_marathon_callback(callback: types.CallbackQuery, callback_data: Dict[str, Any]):
     keyboard = await marathons_buttons(level=2, role="admin",
                                        full_user_name=callback_data["full_user_name"],
-                                       change_button=True)
+                                       change_marathon=True)
     await callback.message.answer(
         "Выберете марафон, который Вы хотите изменить:",
         reply_markup=keyboard
@@ -286,8 +289,8 @@ async def change_marathon_callback(callback: types.CallbackQuery, callback_data:
 
 
 @admin_router.callback_query(AdminCallbackFilter("change"))
-async def change_marathon_callback(callback: types.CallbackQuery,
-                                   callback_data: AdminCallBack):
+async def choice_marathon_to_change_callback(callback: types.CallbackQuery,
+                                             callback_data: Dict[str, Any]):
     media, keyboard = await get_marathon_capacities(marathon=callback_data["marathon"],
                                                     full_user_name=callback_data["full_user_name"])
     await callback.message.delete()
@@ -299,7 +302,7 @@ async def change_marathon_callback(callback: types.CallbackQuery,
 
 @admin_router.callback_query(StateFilter(None), AdminCallbackFilter("attribute"))
 async def change_marathon_capacity_callback(callback: types.CallbackQuery,
-                                            callback_data: AdminCallBack,
+                                            callback_data: Dict[str, Any],
                                             state: FSMContext):
     await state.update_data(marathon=callback_data["marathon"])
     await state.update_data(marathon_id=callback_data["marathon_id"])
@@ -312,10 +315,18 @@ async def change_marathon_capacity_callback(callback: types.CallbackQuery,
 @admin_router.message(ChangeMarathon.capacity, or_f(F.text, F.photo))
 async def update_marathon_capacity(message: types.Message, state: FSMContext):
     if message.text:
-        if 2 >= len(message.text):
+        if message.text.isdigit():
+            try:
+                capacity = float(message.text)
+                await state.update_data(capacity=capacity)
+            except ValueError:
+                await message.answer("Введите корректное значение цены")
+                return
+        elif len(message.text) > 2:
+            await state.update_data(capacity=message.text)
+        else:
             await message.answer(f"Некорректное значение. Введите заново")
             return
-        await state.update_data(capacity=message.text)
     elif message.photo:
         await state.update_data(capacity=message.photo[-1].file_id)
 
@@ -327,8 +338,12 @@ async def update_marathon_capacity(message: types.Message, state: FSMContext):
         await MarathonsQuery.update_instance(instance_id=data["marathon_id"],
                                              new_instance_data=new_data,
                                              relationship="description")
-        await message.answer(f"Значение для {capacities_buttons[data['attribute']]} "
-                             f"было изменено на {data['capacity']}")
+        if capacities_buttons[data['attribute']] == "ИЗОБРАЖЕНИЕ":
+            await message.answer(f"{capacities_buttons[data['attribute']]} "
+                                 f"было изменено")
+        else:
+            await message.answer(f"Значение для {capacities_buttons[data['attribute']]} "
+                                 f"было изменено на {data['capacity']}")
 
         if data["attribute"] == "name":
             media, keyboard = await get_marathon_capacities(marathon=new_data[data["attribute"]],
@@ -347,3 +362,35 @@ async def update_marathon_capacity(message: types.Message, state: FSMContext):
             f"Ошибка: \n{str(e)}\n",
         )
         await state.clear()
+
+
+# *********************** To delete marathon **********************
+
+@admin_router.callback_query(AdminCallbackFilter(banner="delete_marathon"))
+async def delete_marathon_callback(callback: types.CallbackQuery, callback_data: Dict[str, Any]):
+    keyboard = await marathons_buttons(level=2, role="admin",
+                                       full_user_name=callback_data["full_user_name"],
+                                       delete_marathon=True)
+    await callback.message.answer(
+        "Выберете марафон, который Вы хотите удалить:",
+        reply_markup=keyboard
+    )
+
+
+@admin_router.callback_query(AdminCallbackFilter("delete"))
+async def choice_marathon_to_delete_callback(callback: types.CallbackQuery,
+                                             callback_data: Dict[str, Any]):
+    try:
+        delete_result = await MarathonsQuery.delete_instance(instance_name=callback_data['marathon'],
+                                                             relationship="description")
+        keyboard = await marathons_buttons(level=2, role="admin",
+                                           full_user_name=callback_data["full_user_name"],
+                                           delete_marathon=True)
+        await callback.message.answer(
+            text=f"{delete_result}\nВыберете марафон, который Вы хотите удалить:",
+            reply_markup=keyboard
+        )
+    except Exception as e:
+        await callback.message.answer(
+            f"Ошибка: \n{str(e)}\n",
+        )

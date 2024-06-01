@@ -22,8 +22,9 @@ class AsyncCrud:
             else:
                 query = select(cls.DB_TABLE)
             result = await session.execute(query)
-
-        return result.scalars().all()
+        all_instances = result.scalars().all()
+        all_instances.sort(key=lambda x: x.id)
+        return all_instances
 
     @classmethod
     async def get_instance(cls, instance_id: int = None,
@@ -120,13 +121,28 @@ class AsyncCrud:
                 await session.close()
 
     @classmethod
-    async def delete_instance(cls, instance_id: int):
+    async def delete_instance(cls, instance_id: int | None = None,
+                              instance_name: str | None = None,
+                              relationship: str | None = None):
         async with db_context() as session:
-            instance = await session.execute(select(cls.DB_TABLE).filter(cls.DB_TABLE.id == instance_id))
-            db_instance = instance.scalar_one_or_none()
-            if db_instance:
-                session.delete(db_instance)
+            try:
+                instance = await cls.get_instance(instance_id, instance_name, relationship)
+                if not instance:
+                    return "Instance was not found"
+
+                if relationship:
+                    get_sub_instance_id = getattr(instance, f"{relationship}_id")
+                    query = select(cls.SUB_INSTANCE.DB_TABLE).where(cls.SUB_INSTANCE.DB_TABLE.id == get_sub_instance_id)
+                    sub_instance = (await session.execute(query)).scalar_one_or_none()
+                    await session.delete(sub_instance)
+                    await session.commit()
+
+                instance = await session.merge(instance)
+                await session.delete(instance)
                 await session.commit()
+                return "Запись была успешно удалена"
+            except Exception as e:
+                return f"{e}.\nЗапись не была удалена"
 
 
 class DescriptionsQuery(AsyncCrud):

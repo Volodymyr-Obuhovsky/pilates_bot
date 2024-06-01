@@ -60,8 +60,8 @@ async def marathon_page(level: int, page: int, full_user_name: str, role: str):
     image = InputMediaPhoto(
         media=marathon.image,
         caption=f"<strong>{marathon.description.header}\
-                </strong>\n{marathon.description.text}\nСтоимость: {round(marathon.price, 2)} евро\n\n\
-                <strong>Марафон {paginator.page} из {paginator.pages}</strong>",
+                </strong>\n{marathon.description.text}\nСтоимость: {round(marathon.price, 2)} евро"
+                # <strong>Марафон {paginator.page} из {paginator.pages}</strong>",
     )
 
     pagination_buttons = pages(paginator)
