@@ -26,6 +26,7 @@ async def create_button(button: str, callback_data: dict, panel: str):
 
 async def main_page_buttons(level: int, role: str,
                             full_user_name: str,
+                            for_review: bool = False,
                             sizes: tuple[int] = (2,)):
     keyboard = InlineKeyboardBuilder()
 
@@ -33,13 +34,14 @@ async def main_page_buttons(level: int, role: str,
         "МАРАФОНЫ 🏃‍♀️": "marathons",
         "ОПЛАТА💵": "payment",
         "О НАС ℹ️": "about",
-        "FAQ 📃": "faq"
+        "ОТЗЫВЫ 🤙": "reviews"
     }
 
     for button_name, banner in buttons.items():
         button = await create_button(button=button_name,
                                      callback_data=dict(level=level + 1,
                                                         full_user_name=full_user_name,
+                                                        for_review=True if banner == "reviews" else False,
                                                         banner_name=banner,
                                                         role=role),
                                      panel="standard_panel")
@@ -80,68 +82,74 @@ async def admin_panel_buttons(full_user_name: str, sizes: tuple[int] = (2, 1)):
     return keyboard.adjust(*sizes).as_markup()
 
 
-async def info_pages_buttons(level: int, role: str, full_user_name: str, sizes: tuple[int] = (2,)):
+async def info_pages_buttons(level: int, role: str, full_user_name: str,
+                             for_review: bool = False, sizes: tuple[int] = (2,)):
     # Info_pages: payment_page, about_page, faq_page
     keyboard = InlineKeyboardBuilder()
 
-    buttons = {
-        "⬅️НАЗАД": "main",
-        "МАРАФОНЫ🏃‍♀️": "marathons",
-        "НА ГЛАВНУЮ🏠": "main",
-    }
-    for button_name, banner in buttons.items():
+    button = await create_button(button="⬅️НАЗАД",
+                                 callback_data=dict(level=level - 1,
+                                                    banner_name="reviews" if for_review else "main",
+                                                    for_review=for_review,
+                                                    full_user_name=full_user_name,
+                                                    role=role),
+                                 panel="standard_menu")
 
-        if banner == "marathons":
-            button = await create_button(button=button_name,
-                                         callback_data=dict(level=level,
-                                                            banner_name=banner,
-                                                            full_user_name=full_user_name,
-                                                            role=role),
-                                         panel="standard_menu")
+    keyboard.add(button)
+    button = await create_button(button="МАРАФОНЫ🏃‍♀️",
+                                 callback_data=dict(level=level - 1,
+                                                    banner_name="marathons",
+                                                    full_user_name=full_user_name,
+                                                    role=role),
+                                 panel="standard_menu")
 
-            keyboard.add(button)
-            continue
-        button = await create_button(button=button_name,
-                                     callback_data=dict(level=level - 1, banner_name=banner,
-                                                        full_user_name=full_user_name,
-                                                        role=role),
-                                     panel="standard_menu")
-        keyboard.add(button)
+    keyboard.add(button)
+    button = await create_button(button="НА ГЛАВНУЮ🏠",
+                                 callback_data=dict(level=level - 2,
+                                                    banner_name="main",
+                                                    full_user_name=full_user_name,
+                                                    role=role),
+                                 panel="standard_menu")
 
+    keyboard.add(button)
     return keyboard.adjust(*sizes).as_markup()
 
 
 async def marathons_buttons(level: int,
                             role: str,
                             full_user_name: str,
-                            sizes: tuple[int] = (2, ),
+                            sizes: tuple[int] = (2,),
+                            for_review: bool = False,
                             change_marathon: bool = False,
                             delete_marathon: bool = False):
     keyboard = InlineKeyboardBuilder()
     marathons = await MarathonsQuery.get_all_instances(relationship="description")
-    buttons = [(marathon.description.header, marathon.name, marathon.id) for marathon in marathons]
+    buttons = [(marathon.description.header, marathon.name) for marathon in marathons]
 
-    for button_name, banner, page in buttons:
+    for page, (marathon_header, marathon) in enumerate(buttons, start=1):
+        marathon = f"review_{marathon}" if for_review else marathon
         if change_marathon:
-            button = await create_button(button=button_name,
-                                         callback_data=dict(marathon=banner,
+            button = await create_button(button=marathon_header,
+                                         callback_data=dict(marathon=marathon,
                                                             full_user_name=full_user_name,
                                                             change=True),
                                          panel="admin")
 
             keyboard.add(button)
         elif delete_marathon:
-            button = await create_button(button=button_name,
-                                         callback_data=dict(marathon=banner,
+            button = await create_button(button=marathon_header,
+                                         callback_data=dict(marathon=marathon,
+                                                            marathon_header=marathon_header,
                                                             full_user_name=full_user_name,
                                                             delete=True),
                                          panel="admin")
 
             keyboard.add(button)
         else:
-            button = await create_button(button=button_name,
-                                         callback_data=dict(level=level + 1, banner_name=banner,
+            button = await create_button(button=marathon_header,
+                                         callback_data=dict(level=level + 1, banner_name=marathon,
                                                             full_user_name=full_user_name,
+                                                            for_review=for_review,
                                                             role=role, page=page),
                                          panel="standard_menu")
             keyboard.add(button)

@@ -386,6 +386,8 @@ async def choice_marathon_to_delete_callback(callback: types.CallbackQuery,
         keyboard = await marathons_buttons(level=2, role="admin",
                                            full_user_name=callback_data["full_user_name"],
                                            delete_marathon=True)
+        await callback.answer(text=f"Марафон {callback_data['marathon_header']} успешно удален",
+                              show_alert=True)
         await callback.message.answer(
             text=f"{delete_result}\nВыберете марафон, который Вы хотите удалить:",
             reply_markup=keyboard

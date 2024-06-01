@@ -23,8 +23,9 @@ async def main_page(level: int, full_user_name: str, role: str, banner_name: str
 # ********************* Functions for user menu **************************
 
 
-async def info_pages(level: int, full_user_name: str, banner_name: str, role: str):
-    # Info_pages:marathons, payment_page, about_page, faq_page
+async def info_pages(level: int, full_user_name: str,
+                     banner_name: str, role: str, for_review: bool):
+    # Info_pages:marathons, payment_page, about_page, reviews_page
     banner = await BannerQuery.get_instance(instance_name=banner_name, relationship="description")
     header = f"<strong>{banner.description.header}</strong>"
     if banner_name == "about":
@@ -34,8 +35,11 @@ async def info_pages(level: int, full_user_name: str, banner_name: str, role: st
 
     if banner_name == "marathons":
         keyboard = await marathons_buttons(level=level, role=role, full_user_name=full_user_name)
+    elif banner_name == "reviews":
+        keyboard = await marathons_buttons(level=level, role=role, full_user_name=full_user_name, for_review=for_review)
     else:
-        keyboard = await info_pages_buttons(level=level, role=role, full_user_name=full_user_name)
+        keyboard = await info_pages_buttons(level=level, role=role,
+                                            full_user_name=full_user_name, for_review=for_review)
 
     return image, keyboard
 
@@ -61,7 +65,7 @@ async def marathon_page(level: int, page: int, full_user_name: str, role: str):
         media=marathon.image,
         caption=f"<strong>{marathon.description.header}\
                 </strong>\n{marathon.description.text}\nСтоимость: {round(marathon.price, 2)} евро"
-                # <strong>Марафон {paginator.page} из {paginator.pages}</strong>",
+        # <strong>Марафон {paginator.page} из {paginator.pages}</strong>",
     )
 
     pagination_buttons = pages(paginator)
@@ -117,15 +121,16 @@ async def get_banner_data(level: int,
                           banner_name: str | None = None,
                           page: int | None = None,
                           role: str = "user",
+                          for_review: bool = False,
                           after_add: bool = False):
     if banner_name == "admin_panel":
         return await admin_panel(banner_name=banner_name, full_user_name=full_user_name, after_add=after_add)
     if not level:
         return await main_page(level=level, full_user_name=full_user_name, role=role, banner_name=banner_name)
-    if level == 1:
-        return await info_pages(level=level, full_user_name=full_user_name, banner_name=banner_name, role=role)
+    if level == 1 or for_review:
+        return await info_pages(level=level, full_user_name=full_user_name, banner_name=banner_name,
+                                for_review=for_review, role=role)
     if level == 2:
-        return await marathon_page(level=level, page=page, full_user_name=full_user_name,
-                                   role=role)
+        return await marathon_page(level=level, page=page, full_user_name=full_user_name, role=role)
     if level == 3:
         return await buy_marathon(level=level, banner_name=banner_name, full_user_name=full_user_name, role=role)

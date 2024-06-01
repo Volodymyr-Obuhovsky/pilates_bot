@@ -33,6 +33,7 @@ async def cmd_start(message: Message) -> None:
 async def user_menu(callback: CallbackQuery, callback_data: Dict[str, Any]):
     media, keyboards = await get_banner_data(level=callback_data["level"],
                                              full_user_name=callback_data["full_user_name"],
+                                             for_review=callback_data["for_review"],
                                              banner_name=callback_data["banner_name"],
                                              page=callback_data["page"],
                                              role=callback_data["role"],

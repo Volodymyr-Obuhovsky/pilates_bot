@@ -19,7 +19,7 @@ class Banners(Base):
     __tablename__ = "banner"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(15), unique=True)
+    name: Mapped[str] = mapped_column(String(150), unique=True)
     image: Mapped[str] = mapped_column(String(150), nullable=True)
     description_id: Mapped[int] = mapped_column(ForeignKey("description.id", ondelete="SET NULL"), nullable=True)
 
