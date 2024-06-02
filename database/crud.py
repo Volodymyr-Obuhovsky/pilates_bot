@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import DBAPIError
 
 from database.db_config import db_context
-from database.models import Descriptions, Banners, Marathons, Users
+from database.models import Descriptions, Banners, Marathons, Reviews, Users
 
 
 class AsyncCrud:
@@ -166,3 +166,9 @@ class UsersQuery(AsyncCrud):
     DB_TABLE = Users
     HAS_SUB_INSTANCE = True
     SUB_INSTANCE = MarathonsQuery
+
+
+class ReviewQuery(AsyncCrud):
+    DB_TABLE = Reviews
+    HAS_SUB_INSTANCE = True
+    SUB_INSTANCE = DescriptionsQuery

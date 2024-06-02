@@ -8,10 +8,11 @@ from aiogram.fsm.state import State, StatesGroup
 
 from app_filters.chat_types import ChatTypes
 from app_filters.callback_query import AdminCallbackFilter
-from handlers.navigation_proccesing import get_banner_data, get_marathon_capacities
+from handlers.navigation_proccesing import get_banner_data, get_marathon_capacities, get_review_capacities
 from keyboards.reply import get_keyboard
-from keyboards.inline import marathons_buttons, AdminCallBack, finish_add_marathon_buttons
-from database.crud import MarathonsQuery
+from keyboards.inline import marathons_buttons, AdminCallBack, finish_add_marathon_buttons, \
+    admin_manage_marathons_buttons, admin_manage_reviews_buttons, review_buttons
+from database.crud import MarathonsQuery, BannerQuery, ReviewQuery
 
 admin_router = Router()
 admin_router.message.filter(ChatTypes(['private']))
@@ -32,6 +33,20 @@ async def admin_panel_callback(callback: CallbackQuery, callback_data: AdminCall
     else:
         await callback.message.edit_media(media=media, reply_markup=keyboards)
         await callback.answer()
+
+
+@admin_router.callback_query(AdminCallbackFilter(banner="admin_marathons"))
+async def admin_manage_callback(callback: CallbackQuery, callback_data: AdminCallBack):
+    keyboard = await admin_manage_marathons_buttons(full_user_name=callback_data["full_user_name"])
+    await callback.message.edit_reply_markup(reply_markup=keyboard)
+    await callback.answer()
+
+
+@admin_router.callback_query(AdminCallbackFilter(banner="admin_reviews"))
+async def admin_manage_callback(callback: CallbackQuery, callback_data: AdminCallBack):
+    keyboard = await admin_manage_reviews_buttons(full_user_name=callback_data["full_user_name"])
+    await callback.message.edit_reply_markup(reply_markup=keyboard)
+    await callback.answer()
 
 
 # *********************** FSM to add marathon **********************
@@ -272,7 +287,7 @@ class ChangeMarathon(StatesGroup):
     # Шаги состояний
     marathon = State()
     marathon_id = State()
-    attribute = State()
+    marathon_attribute = State()
     capacity = State()
 
 
@@ -288,7 +303,7 @@ async def change_marathon_callback(callback: types.CallbackQuery, callback_data:
     )
 
 
-@admin_router.callback_query(AdminCallbackFilter("change"))
+@admin_router.callback_query(AdminCallbackFilter("change_marathon"))
 async def choice_marathon_to_change_callback(callback: types.CallbackQuery,
                                              callback_data: Dict[str, Any]):
     media, keyboard = await get_marathon_capacities(marathon=callback_data["marathon"],
@@ -300,15 +315,15 @@ async def choice_marathon_to_change_callback(callback: types.CallbackQuery,
                                         reply_markup=keyboard)
 
 
-@admin_router.callback_query(StateFilter(None), AdminCallbackFilter("attribute"))
+@admin_router.callback_query(StateFilter(None), AdminCallbackFilter("marathon_attribute"))
 async def change_marathon_capacity_callback(callback: types.CallbackQuery,
                                             callback_data: Dict[str, Any],
                                             state: FSMContext):
     await state.update_data(marathon=callback_data["marathon"])
     await state.update_data(marathon_id=callback_data["marathon_id"])
-    await state.update_data(attribute=callback_data["attribute"])
+    await state.update_data(marathon_attribute=callback_data["marathon_attribute"])
     await callback.answer()
-    await callback.message.answer(text=capacities_text[callback_data["attribute"]])
+    await callback.message.answer(text=capacities_text[callback_data["marathon_attribute"]])
     await state.set_state(ChangeMarathon.capacity)
 
 
@@ -332,21 +347,21 @@ async def update_marathon_capacity(message: types.Message, state: FSMContext):
 
     data = await state.get_data()
     marathon = data["marathon"]
-    new_data = {data["attribute"]: data["capacity"]}
+    new_data = {data["marathon_attribute"]: data["capacity"]}
 
     try:
         await MarathonsQuery.update_instance(instance_id=data["marathon_id"],
                                              new_instance_data=new_data,
                                              relationship="description")
-        if capacities_buttons[data['attribute']] == "ИЗОБРАЖЕНИЕ":
-            await message.answer(f"{capacities_buttons[data['attribute']]} "
+        if capacities_buttons[data['marathon_attribute']] == "ИЗОБРАЖЕНИЕ":
+            await message.answer(f"{capacities_buttons[data['marathon_attribute']]} "
                                  f"было изменено")
         else:
-            await message.answer(f"Значение для {capacities_buttons[data['attribute']]} "
+            await message.answer(f"Значение для {capacities_buttons[data['marathon_attribute']]} "
                                  f"было изменено на {data['capacity']}")
 
-        if data["attribute"] == "name":
-            media, keyboard = await get_marathon_capacities(marathon=new_data[data["attribute"]],
+        if data["marathon_attribute"] == "name":
+            media, keyboard = await get_marathon_capacities(marathon=new_data[data["marathon_attribute"]],
                                                             full_user_name=message.from_user.full_name)
         else:
             media, keyboard = await get_marathon_capacities(marathon=marathon,
@@ -377,7 +392,7 @@ async def delete_marathon_callback(callback: types.CallbackQuery, callback_data:
     )
 
 
-@admin_router.callback_query(AdminCallbackFilter("delete"))
+@admin_router.callback_query(AdminCallbackFilter("delete_marathon"))
 async def choice_marathon_to_delete_callback(callback: types.CallbackQuery,
                                              callback_data: Dict[str, Any]):
     try:
@@ -390,6 +405,232 @@ async def choice_marathon_to_delete_callback(callback: types.CallbackQuery,
                               show_alert=True)
         await callback.message.answer(
             text=f"{delete_result}\nВыберете марафон, который Вы хотите удалить:",
+            reply_markup=keyboard
+        )
+    except Exception as e:
+        await callback.message.answer(
+            f"Ошибка: \n{str(e)}\n",
+        )
+
+
+# *********************** FSM to add review **********************
+
+
+class AddReview(StatesGroup):
+    # Шаги состояний
+    name = State()
+    header = State()
+    image = State()
+
+
+@admin_router.callback_query(StateFilter(None), AdminCallbackFilter(banner="add_review"))
+async def add_review_callback(
+        callback: types.CallbackQuery,
+        state: FSMContext):
+    await callback.message.answer("Добавьте название для отзыва: ")
+    await state.set_state(AddReview.name)
+
+
+@admin_router.message(AddReview.name, F.text)
+async def add_review_name(message: types.Message, state: FSMContext):
+    if 4 >= len(message.text) >= 150:
+        await message.answer(
+            "Название для отзыва не должно превышать 150 символов\n"
+            "или быть менее 5ти символов. \n Введите заново"
+        )
+        return
+
+    await state.update_data(name=f"review_{message.text}")
+    await message.answer("Введите заголовок")
+    await state.set_state(AddReview.header)
+
+
+@admin_router.message(AddReview.name)
+async def add_review_name2(message: types.Message, state: FSMContext):
+    await message.answer("Вы ввели не допустимые данные, введите текст для названия отзыва")
+
+
+@admin_router.message(AddReview.header, F.text)
+async def add_review_header(message: types.Message, state: FSMContext):
+    if 4 >= len(message.text):
+        await message.answer(
+            "Слишком короткий заголовок. \n Введите заново"
+        )
+        return
+    header = message.text
+    await state.update_data(header=header)
+    await message.answer("Добавьте изображение для отзыва")
+    await state.set_state(AddReview.image)
+
+
+@admin_router.message(AddReview.header)
+async def add_review_header2(message: types.Message, state: FSMContext):
+    await message.answer("Вы ввели не допустимые данные, введите заголовок")
+
+
+@admin_router.message(AddReview.image, or_f(F.photo))
+async def add_review_image(message: types.Message, state: FSMContext):
+    if message.photo:
+        await state.update_data(image=message.photo[-1].file_id)
+    else:
+        await message.answer("Отправьте изображение для марафона")
+        return
+
+    data = await state.get_data()
+    sub_data = {"header": data["header"]}
+    new_instance = {attr: value for attr, value in data.items() if attr != "header"}
+    keyboard = await finish_add_marathon_buttons(full_user_name=message.from_user.full_name)
+    try:
+        await ReviewQuery.add_instance(new_instance=new_instance, sub_data=sub_data)
+        text = f"Отзыв успешно добавлен"
+        await message.answer(text, reply_markup=keyboard)
+        await state.clear()
+
+    except Exception as e:
+        await message.answer(
+            f"Ошибка: \n{str(e)}\nЧто-то пошло не так🤷‍♂️",
+            reply_markup=keyboard,
+        )
+        await state.clear()
+
+
+# Ловим все прочее некорректное поведение для этого состояния
+@admin_router.message(AddReview.image)
+async def add_review_image2(message: types.Message, state: FSMContext):
+    await message.answer("Отправьте изображение")
+
+
+# *********************** To change review **********************
+
+
+# 2. To change marathon
+
+review_capacities_text = {"name": "Введите новое название",
+                          "header": "Ведите новый заголовок",
+                          "image": "Добавьте новое изображение"}
+
+review_capacities_buttons = {
+    "name": "НАЗВАНИЕ",
+    "header": "ЗАГОЛОВОК",
+    "image": "ИЗОБРАЖЕНИЕ"
+}
+
+
+class ChangeReview(StatesGroup):
+    # Шаги состояний
+    review = State()
+    review_id = State()
+    review_attribute = State()
+    capacity = State()
+
+
+# 2.0 Отлавливаем нажатие кнопки "Изменить марафон"
+@admin_router.callback_query(AdminCallbackFilter(banner="change_review"))
+async def change_review_callback(callback: types.CallbackQuery, callback_data: Dict[str, Any]):
+    keyboard = await review_buttons(level=2,
+                                    role="admin",
+                                    full_user_name=callback_data["full_user_name"],
+                                    change_review=True)
+    await callback.message.answer(
+        "Выберете отзыв, который Вы хотите изменить:",
+        reply_markup=keyboard)
+
+
+@admin_router.callback_query(AdminCallbackFilter("change_review"))
+async def choice_review_to_change_callback(callback: types.CallbackQuery,
+                                           callback_data: Dict[str, Any]):
+    media, keyboard = await get_review_capacities(review=callback_data["review"],
+                                                  full_user_name=callback_data["full_user_name"])
+    await callback.message.delete()
+    await callback.message.answer_photo(photo=media.media,
+                                        caption=f"<strong>{media.caption}</strong>"
+                                                f"\n\nВыберите что Вы хотите изменить:",
+                                        reply_markup=keyboard)
+
+
+@admin_router.callback_query(StateFilter(None), AdminCallbackFilter("review_attribute"))
+async def change_review_capacity_callback(callback: types.CallbackQuery,
+                                          callback_data: Dict[str, Any],
+                                          state: FSMContext):
+    await state.update_data(review=callback_data["review"])
+    await state.update_data(review_id=callback_data["review_id"])
+    await state.update_data(review_attribute=callback_data["review_attribute"])
+    await callback.answer()
+    await callback.message.answer(text=capacities_text[callback_data["review_attribute"]])
+    await state.set_state(ChangeReview.capacity)
+
+
+@admin_router.message(ChangeReview.capacity, or_f(F.text, F.photo))
+async def update_review_capacity(message: types.Message, state: FSMContext):
+    if message.text:
+        if message.text and len(message.text) > 2:
+            await state.update_data(capacity=message.text)
+        else:
+            await message.answer(f"Некорректное значение. Введите заново")
+            return
+    elif message.photo:
+        await state.update_data(capacity=message.photo[-1].file_id)
+
+    data = await state.get_data()
+    review = data["review"]
+    new_data = {data["review_attribute"]: data["capacity"]}
+
+    try:
+        await ReviewQuery.update_instance(instance_id=data["review_id"],
+                                          new_instance_data=new_data,
+                                          relationship="description")
+        if capacities_buttons[data['review_attribute']] == "ИЗОБРАЖЕНИЕ":
+            await message.answer(f"{capacities_buttons[data['review_attribute']]} "
+                                 f"было изменено")
+        else:
+            await message.answer(f"Значение для {capacities_buttons[data['review_attribute']]} "
+                                 f"было изменено на {data['capacity']}")
+
+        if data["review_attribute"] == "name":
+            media, keyboard = await get_review_capacities(review=new_data[data["review_attribute"]],
+                                                          full_user_name=message.from_user.full_name)
+        else:
+            media, keyboard = await get_review_capacities(review=review,
+                                                          full_user_name=message.from_user.full_name)
+
+        await message.answer_photo(media.media,
+                                   caption="Выберите что Вы хотите изменить:",
+                                   reply_markup=keyboard)
+        await state.clear()
+
+    except Exception as e:
+        await message.answer(
+            f"Ошибка: \n{str(e)}\n",
+        )
+        await state.clear()
+
+
+# *********************** To delete review **********************
+
+@admin_router.callback_query(AdminCallbackFilter(banner="delete_review"))
+async def delete_review_callback(callback: types.CallbackQuery, callback_data: Dict[str, Any]):
+    keyboard = await review_buttons(level=2, role="admin",
+                                    full_user_name=callback_data["full_user_name"],
+                                    delete_review=True)
+    await callback.message.answer(
+        "Выберете отзыв, который Вы хотите удалить:",
+        reply_markup=keyboard
+    )
+
+
+@admin_router.callback_query(AdminCallbackFilter("delete_review"))
+async def choice_review_to_delete_callback(callback: types.CallbackQuery,
+                                           callback_data: Dict[str, Any]):
+    try:
+        delete_result = await ReviewQuery.delete_instance(instance_name=callback_data['review'],
+                                                          relationship="description")
+        keyboard = await review_buttons(level=2, role="admin",
+                                        full_user_name=callback_data["full_user_name"],
+                                        delete_review=True)
+        await callback.answer(text=f"Отзыв {callback_data['review_header']} успешно удален",
+                              show_alert=True)
+        await callback.message.answer(
+            text=f"{delete_result}\nВыберете отзыв, который Вы хотите удалить:",
             reply_markup=keyboard
         )
     except Exception as e:

@@ -1,6 +1,6 @@
 import asyncio
 
-from database.crud import MarathonsQuery, BannerQuery
+from database.crud import MarathonsQuery, BannerQuery, ReviewQuery
 from database.db_config import drop_db, create_db
 
 basic_banners = {
@@ -59,30 +59,6 @@ basic_banners = {
             "header": f"Отзывы участников",
             "text": ""
         }},
-    "review_back_hands": {
-        "image": "AgACAgQAAxkBAAIIG2ZbIrhMhcUdG-lBaei_OK-h08HJAALGwTEbmGvZUlfYLP7Qeik8AQADAgADeAADNQQ",
-        "sub_data": {
-             "header": "Отзывы участников о марафоне СПИНА - РУКИ",
-             "text": ""}
-    },
-    "review_butt_legs": {
-        "image": "AgACAgQAAxkBAAIIHWZbItMM4qwBaNPr8VlTgyapyTCCAALHwTEbmGvZUtjnWh8qvtxwAQADAgADeAADNQQ",
-        "sub_data": {
-             "header": "Отзывы участников о марафоне ПОПА - НОГИ",
-             "text": ""}
-    },
-    "review_abdomen_back": {
-        "image": "AgACAgQAAxkBAAIIH2ZbIulM_QABexavs3VeZRYxb2rRRAACyMExG5hr2VKi4U3lSrVXIAEAAwIAA3gAAzUE",
-        "sub_data": {
-             "header": "Отзывы участников о марафоне ПРЕСС - СПИНА",
-             "text": ""}
-    },
-    "review_abdomen_pelvis": {
-        "image": "AgACAgQAAxkBAAIIIWZbIv6siY2UHOgrtE7OYKrdZnHSAALJwTEbmGvZUkVnc8q8ebD4AQADAgADeAADNQQ",
-        "sub_data": {
-             "header": "Отзывы участников о марафоне ПРЕСС - ТАЗ",
-             "text": ""}
-    },
     "buy_marathon": {
         "image": "AgACAgQAAxkBAAIE22ZTKIJrg6djl6JgHEssVetMIDbTAAK8wDEbTTyZUq9Te1FgoCx7AQADAgADeQADNQQ",
         "sub_data": {
@@ -90,6 +66,34 @@ basic_banners = {
                       f"https://www.instagram.com/masha.pro.pilates/",
             "text": None
         }}
+}
+
+reviews = {
+    "review_back_hands": {
+        "image": "AgACAgQAAxkBAAIIG2ZbIrhMhcUdG-lBaei_OK-h08HJAALGwTEbmGvZUlfYLP7Qeik8AQADAgADeAADNQQ",
+        "sub_data": {
+            "header": "СПИНА - РУКИ",
+            "text": ""}
+    },
+    "review_butt_legs": {
+        "image": "AgACAgQAAxkBAAIIHWZbItMM4qwBaNPr8VlTgyapyTCCAALHwTEbmGvZUtjnWh8qvtxwAQADAgADeAADNQQ",
+        "sub_data": {
+            "header": "ПОПА - НОГИ",
+            "text": ""}
+    },
+    "review_abdomen_back": {
+        "image": "AgACAgQAAxkBAAIIH2ZbIulM_QABexavs3VeZRYxb2rRRAACyMExG5hr2VKi4U3lSrVXIAEAAwIAA3gAAzUE",
+        "sub_data": {
+            "header": "ПРЕСС - СПИНА",
+            "text": ""}
+    },
+    "review_abdomen_pelvis": {
+        "image": "AgACAgQAAxkBAAIIIWZbIv6siY2UHOgrtE7OYKrdZnHSAALJwTEbmGvZUkVnc8q8ebD4AQADAgADeAADNQQ",
+        "sub_data": {
+            "header": "ПРЕСС - ТАЗ",
+            "text": ""}
+    },
+
 }
 
 marathons = {
@@ -172,9 +176,13 @@ async def fill_db():
         await BannerQuery.add_instance(new_instance={"name": ban,
                                                      "image": ban_data["image"]},
                                        sub_data=ban_data["sub_data"])
-    for ban, ban_data in marathons.items():
-        await MarathonsQuery.add_instance(new_instance={"name": ban,
-                                                        "price": ban_data["price"],
-                                                        "image": ban_data["image"],
-                                                        "discount": ban_data["discount"]},
-                                          sub_data=ban_data["sub_data"])
+    for marathon, marathon_data in marathons.items():
+        await MarathonsQuery.add_instance(new_instance={"name": marathon,
+                                                        "price": marathon_data["price"],
+                                                        "image": marathon_data["image"],
+                                                        "discount": marathon_data["discount"]},
+                                          sub_data=marathon_data["sub_data"])
+    for review, review_data in reviews.items():
+        await ReviewQuery.add_instance(new_instance={"name": review,
+                                                     "image": review_data["image"]},
+                                       sub_data=review_data["sub_data"])

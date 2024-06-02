@@ -4,13 +4,15 @@ from datetime import datetime
 
 from cash.cash_config import redis
 
-menu_callback_attrs = {"full_user_name": None, "level": None, "banner_name": None,
-                       "marathon": None, "page": 1, "role": "user", "after_add": False,
-                       "for_review": False}
+menu_callback_attrs = {"full_user_name": None, "level": None, "banner_name": None, "review": None,
+                       "marathon": None, "page": 1, "role": "user", "after_add": False}
 
-admin_callback_attrs = {"banner": None, "full_user_name": None, "marathon": None,
-                        "marathon_header": None, "marathon_id": None, "capacity": None,
-                        "attribute": None, "change": False, "delete": False, "after_add": False}
+admin_callback_attrs = {"banner": None, "full_user_name": None, "marathon": None, "review": None,
+                        "marathon_header": None, "review_header": None, "marathon_id": None, "review_id": None,
+                        "capacity": None,
+                        "marathon_attribute": None, "review_attribute": None,
+                        "change_marathon": False, "delete_marathon": False,
+                        "change_review": False, "delete_review": False, "after_add": False}
 
 
 def create_callback_data(data: dict, panel: str = "standard_menu"):

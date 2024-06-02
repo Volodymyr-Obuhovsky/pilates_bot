@@ -32,13 +32,24 @@ class Marathons(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(150), nullable=True, unique=True)
     price: Mapped[float] = mapped_column(Numeric(5, 2), nullable=True)
-    image: Mapped[str] = mapped_column(String(150))
+    image: Mapped[str] = mapped_column(String(150), nullable=True)
     discount: Mapped[int] = mapped_column(BigInteger, nullable=True)
     client_rate: Mapped[int] = mapped_column(Integer, default=0)
     rate: Mapped[int] = mapped_column(Integer, default=0)
     description_id: Mapped[int] = mapped_column(ForeignKey("description.id", ondelete="SET NULL"), nullable=True)
 
     description: Mapped["Descriptions"] = relationship("Descriptions", backref="marathon")
+
+
+class Reviews(Base):
+    __tablename__ = "review"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(150), nullable=True, unique=True)
+    image: Mapped[str] = mapped_column(String(150), nullable=True)
+    description_id: Mapped[int] = mapped_column(ForeignKey("description.id", ondelete="SET NULL"), nullable=True)
+
+    description: Mapped["Descriptions"] = relationship("Descriptions", backref="review")
 
 
 class Users(Base):
